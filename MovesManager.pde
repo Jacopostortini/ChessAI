@@ -1,36 +1,42 @@
 class MovesManager {
   Board board;
-  MovesList currentPieceMoves;
+  MovesList[] currentPlayersMoves;
+  int playerIndex;
 
   MovesManager(Board board) {
     this.board = board;
-    currentPieceMoves = new MovesList();
+    currentPlayersMoves = getMovesByColor(board.playingPlayer, true, true);
   }
 
-  MovesList getMovesByColor(int player, boolean castlings) {
-    MovesList moves = new MovesList();
-
+  MovesList[] getMovesByColor(int player, boolean castlings, boolean checkLegal) {
+    playerIndex = (player >>> 3) - 1;
+    
+    MovesList[] moves = new MovesList[64];
     for (int i = 0; i < 64; i++) {
       int piece = board.state[i];
       if (Pieces.isColor(piece, player)) {
-        moves.addAll(getMovesByIndex(i, castlings));
+        moves[i] = getMovesByIndex(i, castlings, checkLegal);
+      } else {
+        moves[i] = new MovesList();
       }
     }
 
+
     return moves;
   }
 
-  MovesList getMovesByIndex(int index, boolean castlings) {
+  MovesList getMovesByIndex(int index, boolean castlings, boolean checkLegal) {
     MovesList moves = new MovesList();
     int piece = board.state[index];
-    if (Pieces.isSlidingPiece(piece)) moves.addAll(getSlidingMoves(index));
-    else if (Pieces.getType(piece) == Pieces.PAWN) moves.addAll(getPawnMoves(index));
-    else if (Pieces.getType(piece) == Pieces.KNIGHT) moves.addAll(getKnightMoves(index));
-    else if (Pieces.getType(piece) == Pieces.KING) moves.addAll(getKingMoves(index, castlings));
+
+    if (Pieces.isSlidingPiece(piece)) moves.addAll(getSlidingMoves(index, checkLegal));
+    else if (Pieces.getType(piece) == Pieces.PAWN) moves.addAll(getPawnMoves(index, checkLegal));
+    else if (Pieces.getType(piece) == Pieces.KNIGHT) moves.addAll(getKnightMoves(index, checkLegal));
+    else if (Pieces.getType(piece) == Pieces.KING) moves.addAll(getKingMoves(index, castlings, checkLegal));
     return moves;
   }
 
-  private MovesList getSlidingMoves(int index) {
+  private MovesList getSlidingMoves(int index, boolean checkLegal) {
     int piece = board.state[index];
     MovesList moves = new MovesList();
 
@@ -43,7 +49,8 @@ class MovesManager {
 
         if (Pieces.sameColor(piece, target)) break;
 
-        moves.add(new Move(index, square));
+        Move move = new Move(index, square);
+        if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
 
         if (Pieces.getType(target) != Pieces.NONE && !Pieces.sameColor(piece, target)) break;
       }
@@ -52,55 +59,63 @@ class MovesManager {
     return moves;
   }
 
-  private MovesList getPawnMoves(int index) {
+  private MovesList getPawnMoves(int index, boolean checkLegal) {
     int piece = board.state[index];
     MovesList moves  = new MovesList();
 
-    int directionIndex = (Pieces.getColor(piece) >> 3) - 1;
     //Not at the end
-    if (MovesData.distancesFromEdges[index][directionIndex] > 0) {
+    if (MovesData.distancesFromEdges[index][playerIndex] > 0) {
       int square;
       int target;
 
-      //Check for diagonal eatables
-      int diagonalsIndex = directionIndex * 2 + 4;
+      //Check for diagonal
+      int diagonalsIndex = playerIndex * 2 + 4;
       square = index + MovesData.offsetsByDirection[diagonalsIndex];
       target = board.state[square];
       if (Pieces.getType(target) != Pieces.NONE && !Pieces.sameColor(piece, target)) {
-        moves.add(new Move(index, square));
+        Move move = new Move(index, square);
+        if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
       }
 
       square = index + MovesData.offsetsByDirection[diagonalsIndex+1];
       target = board.state[square];
       if (Pieces.getType(target) != Pieces.NONE && !Pieces.sameColor(piece, target)) {
-        moves.add(new Move(index, square));
+        Move move = new Move(index, square);
+        if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
       }
 
-      square = index + MovesData.offsetsByDirection[directionIndex];
+      //Check forwarding
+      square = index + MovesData.offsetsByDirection[playerIndex];
       target = board.state[square];
-      if (Pieces.getType(target) == Pieces.NONE) moves.add(new Move(index, square));
-      else return moves;
+      if (Pieces.getType(target) == Pieces.NONE) {
+        Move move = new Move(index, square);
+        if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
+      } else return moves;
 
       //If white and on rank 1 or black and on rank 6
-      if (abs(index / 8 - 7*directionIndex) == 1) {
-        square += MovesData.offsetsByDirection[directionIndex];
+      if (abs(index / 8 - 7*playerIndex) == 1) {
+        square += MovesData.offsetsByDirection[playerIndex];
         target = board.state[square];
 
-        if (Pieces.getType(target) == Pieces.NONE) moves.add(new Move(index, square));
+        if (Pieces.getType(target) == Pieces.NONE) {
+          Move move = new Move(index, square);
+          if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
+        }
       }
     }
-    
-    if(board.enPassant != -1){
-      
-      if(abs( index - (board.enPassant - MovesData.offsetsByDirection[directionIndex]) ) == 1){
-        moves.add(new Move(index, board.enPassant));
+
+    if (board.enPassant != -1) {
+
+      if (abs( index - (board.enPassant - MovesData.offsetsByDirection[playerIndex]) ) == 1) {
+        Move move = new Move(index, board.enPassant);
+        if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, board.enPassant));
       }
     }
-    
+
     return moves;
   }
 
-  private MovesList getKnightMoves(int index) {
+  private MovesList getKnightMoves(int index, boolean checkLegal) {
     int piece = board.state[index];
     MovesList moves = new MovesList();
 
@@ -114,13 +129,14 @@ class MovesManager {
       target = board.state[square];
       if (Pieces.sameColor(piece, target)) continue;
 
-      moves.add(new Move(index, square));
+      Move move = new Move(index, square);
+      if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
     }
 
     return moves;
   }
 
-  private MovesList getKingMoves(int index, boolean castlings) {
+  private MovesList getKingMoves(int index, boolean castlings, boolean checkLegal) {
     int piece = board.state[index];
     MovesList moves = new MovesList();
 
@@ -133,23 +149,27 @@ class MovesManager {
       target = board.state[square];
       if (Pieces.sameColor(piece, target)) continue;
 
-      moves.add(new Move(index, square));
+      Move move = new Move(index, square);
+      if (!checkLegal || (checkLegal && isLegal(move))) moves.add(new Move(index, square));
     }
 
     if (castlings) {
-      int playerIndex = (Pieces.getColor(piece) >>> 3) - 1;
-      //int[][] possibleCastlings = MovesData.castlingsTargets[playerIndex];
+
       boolean longCastlingAvailable = (board.castlingState & board.castlings[playerIndex][0]) != 0;
       boolean shortCastlingAvailable = (board.castlingState & board.castlings[playerIndex][0]) != 0;
 
-      MovesList allOpponentsMoves = null;
-      if (longCastlingAvailable || shortCastlingAvailable) allOpponentsMoves = getMovesByColor(((playerIndex+1) ^ 11) << 3, false);
+      MovesList[] allOpponentsMoves = null;
+      if (longCastlingAvailable || shortCastlingAvailable) allOpponentsMoves = getMovesByColor(Pieces.getColor(piece) ^ 24, false, false);
       if ( longCastlingAvailable ) {
         //Long castling available for player
         int[] t = {index-2, index-1};
         if (board.isFree(t)) {
           int[] t1 = {t[0], t[1], index};
-          if (!allOpponentsMoves.targetsContains(t1)) {
+          boolean contains = false;
+          for (MovesList list : allOpponentsMoves) {
+            if (list.targetsContains(t1)) contains = true;
+          }
+          if (!contains) {
             //In between squares are not en pris
             moves.add(new Move(index, index - 2));
           }
@@ -160,7 +180,11 @@ class MovesManager {
         int[] t = {index+2, index+1};
         if (board.isFree(t)) {
           int[] t1 = {t[0], t[1], index};
-          if (!allOpponentsMoves.targetsContains(t1)) {
+          boolean contains = false;
+          for (MovesList list : allOpponentsMoves) {
+            if (list.targetsContains(t1)) contains = true;
+          }
+          if (!contains) {
             //In between squares are not en pris
             moves.add(new Move(index, index + 2));
           }
@@ -169,5 +193,27 @@ class MovesManager {
     }
 
     return moves;
+  }
+
+  private boolean isLegal(Move move) {
+    int playingPlayer = Pieces.getColor(board.state[move.getFrom()]);
+    
+    board.simulateMove(move);
+
+    int kingIndex = -1;
+    for (int i = 0; i < 64; i++) {
+      if (board.state[i] == ( playingPlayer | Pieces.KING) ) kingIndex = i;
+    }
+    
+    MovesList[] nextMoves = getMovesByColor(playingPlayer ^ 24, false, false);
+    boolean contains = false;
+    for (MovesList list : nextMoves) {
+      if (list.targetsContains(kingIndex)) contains = true;
+    }
+
+    board.undoSimulation();
+    playerIndex = 1 - playerIndex;
+    
+    return !contains;
   }
 }

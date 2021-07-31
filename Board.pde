@@ -18,19 +18,20 @@ class Board {
   int dragging = -1;
   PVector translateVector = new PVector(0, 0);
 
+  final int enPassantChange = -1;
+  final int castlingChange = -2;
+  HashMap<Integer, Integer> simulation;
 
-  Board() {
+
+  private Board() {
     squareDim = min(width, height) / 8 - 20;
     state = new int[8*8];
-    for (int i = 0; i < state.length; i++) {
-      state[i] = 0;
-    }
-    movesManager = new MovesManager(this);
   }
 
   Board(String fen) {
     this();
-    setStateFromFen(fen);
+    FenCast.load(this, fen);
+    movesManager = new MovesManager(this);
   }
 
   void displayBoard() {
@@ -47,7 +48,7 @@ class Board {
           if (dragging == index) {
             fill(fromSquare);
             square(file*squareDim, (7 - rank)*squareDim, squareDim);
-          } else if (movesManager.currentPieceMoves.targetsContains(index)) {
+          } else if (movesManager.currentPlayersMoves[dragging].targetsContains(index)) {
             fill(toSquare);
             square(file*squareDim, (7 - rank)*squareDim, squareDim);
           }
@@ -74,17 +75,27 @@ class Board {
     }
   }
 
-  void move(int from, int to) {
-    if (!movesManager.currentPieceMoves.targetsContains(to)) return; 
+  void move(int from, int to, boolean save) {
 
     int movingPiece = state[from];
     int targetPiece = state[to];
 
     if (!Pieces.isColor(movingPiece, playingPlayer)) return;
-    enPassant = -1;
+
+    if (save) {
+      simulation = new HashMap();
+    }
 
     int playerIndex = (playingPlayer>>>3)-1;
-    state[from] = 0;
+
+    if (save) {
+      simulation.put(enPassantChange, enPassant);
+      simulation.put(castlingChange, castlingState);
+      simulation.put(from, movingPiece);
+      simulation.put(to, targetPiece);
+    }
+    enPassant = -1;
+    state[from] = Pieces.NONE;
     state[to] = movingPiece;
 
     //Check for promotions
@@ -97,18 +108,23 @@ class Board {
       if (abs(from - to) == 16) {
         enPassant = to - MovesData.offsetsByDirection[playerIndex];
       }
-      
+
       //Check en passant move
-      if (to - from != MovesData.offsetsByDirection[playerIndex] && Pieces.getType(targetPiece) == Pieces.NONE){
+      if (to - from != MovesData.offsetsByDirection[playerIndex] && Pieces.getType(targetPiece) == Pieces.NONE) {
+
+        if (save) {
+          simulation.put(to - MovesData.offsetsByDirection[playerIndex], state[to - MovesData.offsetsByDirection[playerIndex]]);
+        }
+
         state[to - MovesData.offsetsByDirection[playerIndex]] = Pieces.NONE;
-      }  
+      }
     }
 
     //Check for king or rooks moves (castilngs)
     if (Pieces.getType(movingPiece) == Pieces.KING) {
 
       if (abs(from - to)==2) {
-        castle(from, to, playerIndex);
+        castle(from, to, playerIndex, save);
       }
 
 
@@ -119,88 +135,35 @@ class Board {
       castlingState &= ~castlings[playerIndex][castlingsType];
     }
 
-    togglePlayer();
+    if (!save) togglePlayer();
   }
 
-  private void castle(int from, int to, int playerIndex) {
+  void move(Move move, boolean save) {
+    move(move.getFrom(), move.getTo(), save);
+  }
+
+  void move(int from, int to) {
+    move(from, to, false);
+  }
+
+  private void castle(int from, int to, int playerIndex, boolean save) {
     int direction = (to - from) / 2;
     int rookSquare = direction == 1 ? 7 : 0;
     rookSquare += playerIndex * 56;
-    board.state[to-direction] = board.state[rookSquare];
-    board.state[rookSquare] = Pieces.NONE;
+
+    if (save) {
+      simulation.put(to-direction, state[to-direction]);
+      simulation.put(rookSquare, state[rookSquare]);
+    }
+
+    state[to-direction] = state[rookSquare];
+    state[rookSquare] = Pieces.NONE;
   }
 
   private void togglePlayer() {
     playingPlayer ^= 24;
-  }
-
-  void setStateFromFen(String fen) {
-    HashMap<String, Integer> lookupTable = new HashMap();
-    lookupTable.put("k", Pieces.KING);
-    lookupTable.put("p", Pieces.PAWN);
-    lookupTable.put("n", Pieces.KNIGHT);
-    lookupTable.put("b", Pieces.BISHOP);
-    lookupTable.put("r", Pieces.ROOK);
-    lookupTable.put("q", Pieces.QUEEN);
-
-    //Place the pieces
-    String[] parts = fen.split(" ");
-    String boardState = parts[0];
-    int rank = 7, file = 0;
-    try {
-      String[] ranks = boardState.split("/");
-      for (String r : ranks) {
-        String[] chars = r.split("");
-        for (String c : chars) {
-          if ("0123456789".contains(c)) {
-            file += Integer.parseInt(c);
-          } else {
-            if (c.toUpperCase().equals(c)) {
-              state[8 * rank + file] = Pieces.WHITE | lookupTable.get(c.toLowerCase());
-            } else {
-              state[8 * rank + file] = Pieces.BLACK | lookupTable.get(c);
-            }
-            file++;
-          }
-        }
-        rank--;
-        file = 0;
-      }
-    } 
-    catch(Exception e) {
-      println("Invalid fen expression");
-      throw(e);
-    }
-
-    //Find who is playing
-    playingPlayer = parts[1].toLowerCase().equals("w") ? Pieces.WHITE : Pieces.BLACK;
-
-    //Set castlings
-    castlingState = 0;
-    if (parts[2].contains("Q")) {
-      castlingState |= castlings[0][0];
-    }
-    if (parts[2].contains("K")) {
-      castlingState |= castlings[0][1];
-    }
-    if (parts[2].contains("q")) {
-      castlingState |= castlings[1][0];
-    }
-    if (parts[2].contains("k")) {
-      castlingState |= castlings[1][1];
-    }
-
-    //Set pris en passant
-    if (!parts[3].equals("-")) {
-      String[] coor = parts[3].split("");
-      String stringFile = coor[0];
-      String stringRank = coor[1];
-
-      int intRank = Integer.parseInt(stringRank) - 1;
-      int intFile = ( (int) stringFile.toLowerCase().charAt(0) ) - 97;
-
-      enPassant = 8 * intRank + intFile;
-    }
+    
+    movesManager.currentPlayersMoves = movesManager.getMovesByColor(playingPlayer, true, true);
   }
 
   boolean isFree(int[] targets) {
@@ -208,5 +171,41 @@ class Board {
       if (state[t] != Pieces.NONE) return false;
     }
     return true;
+  }
+
+  void simulateMove(Move move) {
+    move(move, true);
+  }
+
+  void undoSimulation() {
+    if (simulation == null) return;
+
+    for (int i : simulation.keySet()) {
+      if (i == enPassantChange) enPassant = simulation.get(i);
+      else if (i == castlingChange) castlingState = simulation.get(i);
+      else state[i] = simulation.get(i);
+    }
+    
+    simulation = null;
+  }
+  
+  void print(){
+    println("\n\n------------");
+    println("Playing player: "+playingPlayer);
+    println("Castling state: "+Integer.toBinaryString(castlingState));
+    println("En passant: "+enPassant);
+    println("State:");
+    for(int rank = 7; rank >= 0; rank--){
+      String line = "";
+      for(int file = 0; file < 8; file++){
+        String piece = Integer.toBinaryString(state[rank*8+file]);
+        while(piece.length() < 5){
+          piece = "0"+piece;
+        }
+        line += piece + "  ";
+      }
+      println(line);
+    }
+    println("------------\n\n");
   }
 }

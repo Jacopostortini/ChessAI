@@ -8,9 +8,8 @@ class MouseInterface {
 
   void onMousePressed() {
     int index = getIndexFromMouse();
-    if(!Pieces.isColor(board.state[index], board.playingPlayer)) return;
+    if (!Pieces.isColor(board.state[index], board.playingPlayer)) return;
     board.dragging = index;
-    board.movesManager.currentPieceMoves = board.movesManager.getMovesByIndex(index, true);
   }
 
   void onMouseDragged() {
@@ -21,9 +20,12 @@ class MouseInterface {
 
   void onMouseReleased() {
     if (board.dragging != -1) {
-      board.move(board.dragging, getIndexFromMouse());
+      int from = board.dragging;
+      int to = getIndexFromMouse();
       board.dragging = -1;
       board.translateVector.mult(0);
+      if (!board.movesManager.currentPlayersMoves[from].targetsContains(to)) return;
+      board.move(from, to);
     }
   }
 

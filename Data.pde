@@ -3,7 +3,6 @@ static class MovesData {
   final static int[] offsetsByDirection = {8, -8, -1, 1, 7, 9, -9, -7};
   final static int[] knightMoves = {6, 10, 15, 17, -6, -10, -15, -17};
   private static boolean[][] knightDistancesFromEdges; 
-  //final static int[][][] castlingsTargets = {{{2, 3}, {5, 6}}, {{58, 59}, {61, 62}}};
     private static int[][] distancesFromEdges;
 
   static void calculateData() {

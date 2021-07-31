@@ -18,4 +18,12 @@ class Move {
   boolean equals(Move other){
     return from == other.from && to == other.to;
   }
+  
+  void print(){
+    println(toString());
+  }
+  
+  String toString(){
+    return "From "+from+" to "+to;
+  }
 }
