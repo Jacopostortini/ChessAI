@@ -131,8 +131,10 @@ class Board {
       castlingState &= ~castlings[playerIndex][0];
       castlingState &= ~castlings[playerIndex][1];
     } else if (Pieces.getType(movingPiece) == Pieces.ROOK) {
-      int castlingsType = from / 7 - 8 * playerIndex;
-      castlingState &= ~castlings[playerIndex][castlingsType];
+      if (from == playerIndex * 56 || from == playerIndex * 56 + 7) {
+        int castlingsType = from / 7 - 8 * playerIndex;
+        castlingState &= ~castlings[playerIndex][castlingsType];
+      }
     }
 
     if (!save) togglePlayer();
@@ -144,6 +146,10 @@ class Board {
 
   void move(int from, int to) {
     move(from, to, false);
+  }
+
+  void move(Move move) {
+    move(move, false);
   }
 
   private void castle(int from, int to, int playerIndex, boolean save) {
@@ -162,7 +168,7 @@ class Board {
 
   private void togglePlayer() {
     playingPlayer ^= 24;
-    
+
     movesManager.currentPlayersMoves = movesManager.getMovesByColor(playingPlayer, true, true);
   }
 
@@ -185,21 +191,71 @@ class Board {
       else if (i == castlingChange) castlingState = simulation.get(i);
       else state[i] = simulation.get(i);
     }
-    
+
     simulation = null;
   }
+
+  String getMatchState() {
+    if (!canMove()) {
+      if(isCheck()) return "Check mate, "+(playingPlayer == Pieces.WHITE ? "black" : "white")+" wins!";
+      else return "Draw";
+    } else {
+      return enoughPieces() ? "Playing" : "Draw";
+    }
+  }
+
+  boolean isCheck() {
+    MovesList[] opponentsMoves = movesManager.getMovesByColor(playingPlayer ^ 24, false, false);
+    int kingsIndex = -1;
+    for (int i = 0; i < 64; i++) {
+      if (state[i] == ( playingPlayer | Pieces.KING )) {
+        kingsIndex = i;
+      }
+    }
+    for (MovesList list : opponentsMoves) {
+      if (list.targetsContains(kingsIndex)) return true;
+    }
+    return false;
+  }
+
+  boolean canMove() {
+    boolean canMove = false;
+    for (MovesList list : movesManager.currentPlayersMoves) {
+      if (list.size() > 0) canMove = true;
+    }
+    return canMove;
+  }
   
-  void print(){
+  boolean enoughPieces(){
+    int countBishops = 0;
+    int[] countKnights = {0, 0};
+    for(int piece: state){
+      int type = Pieces.getType(piece); 
+      int col = Pieces.getColor(piece);
+      if( type != Pieces.KING && type != Pieces.BISHOP && type != Pieces.KNIGHT) return true;
+      if( type == Pieces.BISHOP ) countBishops++;
+      else if( type == Pieces.KNIGHT ) countKnights[col == Pieces.WHITE ? 0 : 1]++;
+    }
+    println(countBishops);
+    println(countKnights);
+    return 
+    (countBishops == 0 && countKnights[0] <= 2) || 
+    (countBishops == 1 && countKnights[0] == 0) ||
+    (countBishops == 0 && countKnights[1] <= 2) || 
+    (countBishops == 1 && countKnights[1] == 0);
+  }
+
+  void print() {
     println("\n\n------------");
     println("Playing player: "+playingPlayer);
     println("Castling state: "+Integer.toBinaryString(castlingState));
     println("En passant: "+enPassant);
     println("State:");
-    for(int rank = 7; rank >= 0; rank--){
+    for (int rank = 7; rank >= 0; rank--) {
       String line = "";
-      for(int file = 0; file < 8; file++){
+      for (int file = 0; file < 8; file++) {
         String piece = Integer.toBinaryString(state[rank*8+file]);
-        while(piece.length() < 5){
+        while (piece.length() < 5) {
           piece = "0"+piece;
         }
         line += piece + "  ";

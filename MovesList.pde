@@ -29,4 +29,10 @@ class MovesList extends ArrayList<Move> {
     }
     return false;
   }
+  
+  Move pickRandom(){
+    if(this.size() == 0) return null;
+    else return this.get((int)random(this.size()));
+    
+  }
 }
