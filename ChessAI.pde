@@ -3,14 +3,12 @@ static String startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0
 Board board;
 MouseInterface mouseInterface;
 AI player1, player2;
+int bots = 0; 
 
 void setup() {
   size(800, 800);
   MovesData.calculateData();
-  board = new Board(startFen);
-  //mouseInterface = new MouseInterface(board);
-  player1 = new AI(board, Pieces.WHITE);
-  player2 = new AI(board, Pieces.BLACK);
+  reset(bots);
 }
 
 String matchState;
@@ -21,29 +19,45 @@ void draw() {
   board.displayBoard();
   board.displayPieces();
   if (frameCount%1==0) {
-    if (player1.myTurn()) player1.play();
-    else if (player2.myTurn()) player2.play();
+    if (player1 != null && player1.myTurn()) player1.play();
+    else if (player2 != null && player2.myTurn()) player2.play();
   }
-  matchState = board.getMatchState();
-  text(matchState, 0, 0);
-  if (!matchState.equals("Playing")) {
-    board = new Board(startFen);
-    //mouseInterface = new MouseInterface(board);
-    player1 = new AI(board, Pieces.WHITE);
-    player2 = new AI(board, Pieces.BLACK);
-    //player1.dead = true;
-    //player2.dead = true;
+
+  if (board.gameOver()) {
+    matchState = board.getMatchState();
+    textSize(30);
+    text(matchState, 0, -20);
+    if (player1 != null) player1.dead = true;
+    if (player2 != null) player2.dead = true;
+    reset(bots);
   }
 }
 
-//void mousePressed() {
-//  mouseInterface.onMousePressed();
-//}
+void reset(int bots) {
+  board = new Board(startFen);
+  switch(bots) {
+  case 0:
+    mouseInterface = new MouseInterface(board);
+    break;
+  case 1:
+    player1 = new AI(board, Pieces.BLACK);
+    mouseInterface = new MouseInterface(board);
+    break;
+  case 2:
+    player1 = new AI(board, Pieces.WHITE);
+    player2 = new AI(board, Pieces.BLACK);
+    break;
+  }
+}
 
-//void mouseDragged() {
-//  mouseInterface.onMouseDragged();
-//}
+void mousePressed() {
+  mouseInterface.onMousePressed();
+}
 
-//void mouseReleased() {
-//  mouseInterface.onMouseReleased();
-//}
+void mouseDragged() {
+  mouseInterface.onMouseDragged();
+}
+
+void mouseReleased() {
+  mouseInterface.onMouseReleased();
+}

@@ -26,6 +26,7 @@ class MouseInterface {
       board.translateVector.mult(0);
       if (!board.movesManager.currentPlayersMoves[from].targetsContains(to)) return;
       board.move(from, to);
+      board.updateAvailableMoves();
     }
   }
 

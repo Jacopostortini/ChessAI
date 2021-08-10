@@ -12,25 +12,25 @@ class Board {
   int playingPlayer = Pieces.WHITE;
   int castlingState = 15;
   int enPassant = -1;
+  
+  ArrayList<BoardState> history;
 
   MovesManager movesManager;
 
   int dragging = -1;
   PVector translateVector = new PVector(0, 0);
 
-  final int enPassantChange = -1;
-  final int castlingChange = -2;
-  HashMap<Integer, Integer> simulation;
-
 
   private Board() {
     squareDim = min(width, height) / 8 - 20;
     state = new int[8*8];
+    history = new ArrayList();
   }
 
   Board(String fen) {
     this();
     FenCast.load(this, fen);
+    saveState();
     movesManager = new MovesManager(this);
   }
 
@@ -75,25 +75,15 @@ class Board {
     }
   }
 
-  void move(int from, int to, boolean save) {
+  void move(int from, int to) {
 
     int movingPiece = state[from];
     int targetPiece = state[to];
 
     if (!Pieces.isColor(movingPiece, playingPlayer)) return;
 
-    if (save) {
-      simulation = new HashMap();
-    }
-
     int playerIndex = (playingPlayer>>>3)-1;
 
-    if (save) {
-      simulation.put(enPassantChange, enPassant);
-      simulation.put(castlingChange, castlingState);
-      simulation.put(from, movingPiece);
-      simulation.put(to, targetPiece);
-    }
     enPassant = -1;
     state[from] = Pieces.NONE;
     state[to] = movingPiece;
@@ -110,11 +100,7 @@ class Board {
       }
 
       //Check en passant move
-      if (to - from != MovesData.offsetsByDirection[playerIndex] && Pieces.getType(targetPiece) == Pieces.NONE) {
-
-        if (save) {
-          simulation.put(to - MovesData.offsetsByDirection[playerIndex], state[to - MovesData.offsetsByDirection[playerIndex]]);
-        }
+      if ((to - from) % 8 != 0 && Pieces.getType(targetPiece) == Pieces.NONE) {
 
         state[to - MovesData.offsetsByDirection[playerIndex]] = Pieces.NONE;
       }
@@ -124,7 +110,7 @@ class Board {
     if (Pieces.getType(movingPiece) == Pieces.KING) {
 
       if (abs(from - to)==2) {
-        castle(from, to, playerIndex, save);
+        castle(from, to, playerIndex);
       }
 
 
@@ -137,30 +123,23 @@ class Board {
       }
     }
 
-    if (!save) togglePlayer();
-  }
-
-  void move(Move move, boolean save) {
-    move(move.getFrom(), move.getTo(), save);
-  }
-
-  void move(int from, int to) {
-    move(from, to, false);
+    togglePlayer();
+    
+    saveState();
   }
 
   void move(Move move) {
-    move(move, false);
+    try{
+    move(move.getFrom(), move.getTo());
+    }catch(Exception e){
+      e.printStackTrace();
+    }
   }
 
-  private void castle(int from, int to, int playerIndex, boolean save) {
+  private void castle(int from, int to, int playerIndex) {
     int direction = (to - from) / 2;
     int rookSquare = direction == 1 ? 7 : 0;
     rookSquare += playerIndex * 56;
-
-    if (save) {
-      simulation.put(to-direction, state[to-direction]);
-      simulation.put(rookSquare, state[rookSquare]);
-    }
 
     state[to-direction] = state[rookSquare];
     state[rookSquare] = Pieces.NONE;
@@ -168,7 +147,9 @@ class Board {
 
   private void togglePlayer() {
     playingPlayer ^= 24;
+  }
 
+  private void updateAvailableMoves() {
     movesManager.currentPlayersMoves = movesManager.getMovesByColor(playingPlayer, true, true);
   }
 
@@ -179,25 +160,13 @@ class Board {
     return true;
   }
 
-  void simulateMove(Move move) {
-    move(move, true);
-  }
-
-  void undoSimulation() {
-    if (simulation == null) return;
-
-    for (int i : simulation.keySet()) {
-      if (i == enPassantChange) enPassant = simulation.get(i);
-      else if (i == castlingChange) castlingState = simulation.get(i);
-      else state[i] = simulation.get(i);
-    }
-
-    simulation = null;
+  boolean gameOver() {
+    return !canMove() || !enoughPieces();
   }
 
   String getMatchState() {
     if (!canMove()) {
-      if(isCheck()) return "Check mate, "+(playingPlayer == Pieces.WHITE ? "black" : "white")+" wins!";
+      if (isCheck()) return "Check mate, "+(playingPlayer == Pieces.WHITE ? "black" : "white")+" wins!";
       else return "Draw";
     } else {
       return enoughPieces() ? "Playing" : "Draw";
@@ -225,24 +194,22 @@ class Board {
     }
     return canMove;
   }
-  
-  boolean enoughPieces(){
+
+  boolean enoughPieces() {
     int countBishops = 0;
     int[] countKnights = {0, 0};
-    for(int piece: state){
+    for (int piece : state) {
       int type = Pieces.getType(piece); 
       int col = Pieces.getColor(piece);
-      if( type != Pieces.KING && type != Pieces.BISHOP && type != Pieces.KNIGHT) return true;
-      if( type == Pieces.BISHOP ) countBishops++;
-      else if( type == Pieces.KNIGHT ) countKnights[col == Pieces.WHITE ? 0 : 1]++;
+      if ( type != Pieces.KING && type != Pieces.BISHOP && type != Pieces.KNIGHT && type != Pieces.NONE) return true;
+      if ( type == Pieces.BISHOP ) countBishops++;
+      else if ( type == Pieces.KNIGHT ) countKnights[col == Pieces.WHITE ? 0 : 1]++;
     }
-    println(countBishops);
-    println(countKnights);
-    return 
-    (countBishops == 0 && countKnights[0] <= 2) || 
-    (countBishops == 1 && countKnights[0] == 0) ||
-    (countBishops == 0 && countKnights[1] <= 2) || 
-    (countBishops == 1 && countKnights[1] == 0);
+    return !(
+      (countBishops == 0 && countKnights[0] <= 2) || 
+      (countBishops == 1 && countKnights[0] == 0) ||
+      (countBishops == 0 && countKnights[1] <= 2) || 
+      (countBishops == 1 && countKnights[1] == 0) );
   }
 
   void print() {
@@ -263,5 +230,49 @@ class Board {
       println(line);
     }
     println("------------\n\n");
+  }
+
+  int evaluateState(int player) {
+    int value = 0;
+    for (int i = 0; i < 64; i++) {
+      int sign = Pieces.isColor(state[i], player) ? 1 : -1;
+      switch(Pieces.getType(state[i])) {
+      case Pieces.PAWN:
+        value += Pieces.PAWN_VALUE * sign;
+      case Pieces.BISHOP:
+        value += Pieces.BISHOP_VALUE * sign;
+      case Pieces.KNIGHT:
+        value += Pieces.KNIGHT_VALUE * sign;
+      case Pieces.ROOK:
+        value += Pieces.ROOK_VALUE * sign;
+      case Pieces.QUEEN:
+        value += Pieces.QUEEN_VALUE * sign;
+      }
+    }
+    
+    return value;
+  }
+  
+  void saveState(){
+    history.add(new BoardState(this));
+  }
+  
+  
+  void undo(int howMany){
+    //println("Starts history");
+    //for(BoardState s: history) s.print();
+    //println("Ends history");
+    restore(history.get(history.size()-howMany-1));
+    int lowerBound = history.size()-howMany;
+    for(int i = history.size()-1; i > lowerBound; i--){
+      history.remove(i);
+    }
+  }
+  
+  void restore(BoardState board){
+    this.state = board.state;
+    this.playingPlayer = board.playingPlayer;
+    this.castlingState = board.castlingState;
+    this.enPassant = board.enPassant;
   }
 }

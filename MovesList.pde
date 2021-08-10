@@ -22,7 +22,7 @@ class MovesList extends ArrayList<Move> {
     for (Move m : this) {
       for(int i: indexes){
         if(m.getTo()==i) {
-          println(m.getFrom()+"   "+m.getTo());
+          //println(m.getFrom()+"   "+m.getTo());
           return true;
         }
       }
