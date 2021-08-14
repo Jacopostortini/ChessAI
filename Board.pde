@@ -12,7 +12,7 @@ class Board {
   int playingPlayer = Pieces.WHITE;
   int castlingState = 15;
   int enPassant = -1;
-  
+
   ArrayList<BoardState> history;
 
   MovesManager movesManager;
@@ -37,8 +37,8 @@ class Board {
   void displayBoard() {
     for (int file = 0; file < 8; file++) {
       for (int rank = 0; rank < 8; rank++) {
-        int isWhite = (file + rank) & 1;  
-        int col = isWhite * whiteSquare + (1-isWhite) * blackSquare; 
+        int isWhite = (file + rank) & 1;
+        int col = isWhite * whiteSquare + (1-isWhite) * blackSquare;
 
         fill(col);
         square(file*squareDim, (7 - rank)*squareDim, squareDim);
@@ -55,8 +55,6 @@ class Board {
         }
       }
     }
-    //text(Integer.toBinaryString(castlingState), 0, 0 );
-    //text(enPassant, 0, 0 );
   }
 
   void displayPieces() {
@@ -124,14 +122,15 @@ class Board {
     }
 
     togglePlayer();
-    
+
     saveState();
   }
 
   void move(Move move) {
-    try{
-    move(move.getFrom(), move.getTo());
-    }catch(Exception e){
+    try {
+      move(move.getFrom(), move.getTo());
+    }
+    catch(Exception e) {
       e.printStackTrace();
     }
   }
@@ -199,16 +198,16 @@ class Board {
     int countBishops = 0;
     int[] countKnights = {0, 0};
     for (int piece : state) {
-      int type = Pieces.getType(piece); 
+      int type = Pieces.getType(piece);
       int col = Pieces.getColor(piece);
       if ( type != Pieces.KING && type != Pieces.BISHOP && type != Pieces.KNIGHT && type != Pieces.NONE) return true;
       if ( type == Pieces.BISHOP ) countBishops++;
       else if ( type == Pieces.KNIGHT ) countKnights[col == Pieces.WHITE ? 0 : 1]++;
     }
     return !(
-      (countBishops == 0 && countKnights[0] <= 2) || 
+      (countBishops == 0 && countKnights[0] <= 2) ||
       (countBishops == 1 && countKnights[0] == 0) ||
-      (countBishops == 0 && countKnights[1] <= 2) || 
+      (countBishops == 0 && countKnights[1] <= 2) ||
       (countBishops == 1 && countKnights[1] == 0) );
   }
 
@@ -249,30 +248,31 @@ class Board {
         value += Pieces.QUEEN_VALUE * sign;
       }
     }
-    
+
     return value;
   }
-  
-  void saveState(){
+
+  void saveState() {
     history.add(new BoardState(this));
   }
-  
-  
-  void undo(int howMany){
-    //println("Starts history");
-    //for(BoardState s: history) s.print();
-    //println("Ends history");
+
+
+  void undo(int howMany) {
     restore(history.get(history.size()-howMany-1));
-    int lowerBound = history.size()-howMany;
-    for(int i = history.size()-1; i > lowerBound; i--){
+    int lowerBound = history.size()-howMany-1;
+    for (int i = history.size()-1; i > lowerBound; i--) {
       history.remove(i);
     }
   }
-  
-  void restore(BoardState board){
-    this.state = board.state;
+
+  void restore(BoardState board) {
+    for (int i = 0; i < 64; i++) this.state[i] = board.state[i];
     this.playingPlayer = board.playingPlayer;
     this.castlingState = board.castlingState;
     this.enPassant = board.enPassant;
+  }
+  
+  void restart(){
+    undo(history.size()-1);
   }
 }

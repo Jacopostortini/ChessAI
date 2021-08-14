@@ -1,13 +1,14 @@
-static String startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+String startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 Board board;
 MouseInterface mouseInterface;
 AI player1, player2;
-int bots = 0; 
+int bots = 2; 
 
 void setup() {
-  size(800, 800);
+  size(600, 600);
   MovesData.calculateData();
+  board = new Board(startFen);
   reset(bots);
 }
 
@@ -34,7 +35,7 @@ void draw() {
 }
 
 void reset(int bots) {
-  board = new Board(startFen);
+  board.restart();
   switch(bots) {
   case 0:
     mouseInterface = new MouseInterface(board);

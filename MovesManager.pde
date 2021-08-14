@@ -23,9 +23,11 @@ class MovesManager {
 
     if (checkLegal) {
       for (MovesList list : moves) {
+        MovesList toRemove = new MovesList();
         for (Move move : list) {
-          if (!isLegal(move)) list.remove(move);
+          if (!isLegal(move)) toRemove.add(move);
         }
+        for(Move move: toRemove) list.remove(move);
       }
     }
 
