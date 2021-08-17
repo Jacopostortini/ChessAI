@@ -5,6 +5,7 @@ class Board {
   final color fromSquare = color(255, 0, 0, 255);
   final color toSquare = color(255, 0, 0, 50);
 
+  //Long white - short white - long black - short black
   final int[][] castlings = {{1, 2}, {4, 8}};
 
   int squareDim;
@@ -127,12 +128,7 @@ class Board {
   }
 
   void move(Move move) {
-    try {
-      move(move.getFrom(), move.getTo());
-    }
-    catch(Exception e) {
-      e.printStackTrace();
-    }
+    move(move.getFrom(), move.getTo());
   }
 
   private void castle(int from, int to, int playerIndex) {
@@ -238,14 +234,22 @@ class Board {
       switch(Pieces.getType(state[i])) {
       case Pieces.PAWN:
         value += Pieces.PAWN_VALUE * sign;
+        break;
       case Pieces.BISHOP:
         value += Pieces.BISHOP_VALUE * sign;
+        break;
       case Pieces.KNIGHT:
         value += Pieces.KNIGHT_VALUE * sign;
+        break;
       case Pieces.ROOK:
         value += Pieces.ROOK_VALUE * sign;
+        break;
       case Pieces.QUEEN:
         value += Pieces.QUEEN_VALUE * sign;
+        break;
+      case Pieces.NONE:
+        value -= 1;
+        break;
       }
     }
 
@@ -271,8 +275,8 @@ class Board {
     this.castlingState = board.castlingState;
     this.enPassant = board.enPassant;
   }
-  
-  void restart(){
+
+  void restart() {
     undo(history.size()-1);
   }
 }

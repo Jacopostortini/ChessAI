@@ -30,6 +30,17 @@ class MouseInterface {
     }
   }
 
+  void onKeyPressed() {
+    if (key=='b') {
+      if (board.history.size()>1) {
+        board.undo(1);
+        board.updateAvailableMoves();
+      }
+    } else if(key == 'r'){
+      board.restart();
+    }
+  }
+
   private int getIndexFromMouse() {
     int x = mouseX-width/2+4*board.squareDim;
     int y = mouseY-height/2+4*board.squareDim;

@@ -168,7 +168,7 @@ class MovesManager {
     if (castlings) {
 
       boolean longCastlingAvailable = (board.castlingState & board.castlings[playerIndex][0]) != 0;
-      boolean shortCastlingAvailable = (board.castlingState & board.castlings[playerIndex][0]) != 0;
+      boolean shortCastlingAvailable = (board.castlingState & board.castlings[playerIndex][1]) != 0;
 
       MovesList[] allOpponentsMoves = null;
       if (longCastlingAvailable || shortCastlingAvailable) allOpponentsMoves = getMovesByColor(Pieces.getColor(piece) ^ 24, false, false);
@@ -211,9 +211,7 @@ class MovesManager {
     int playingPlayer = Pieces.getColor(board.state[move.getFrom()]);
 
     board.move(move);
-
-    //println("\n during");
-    //board.print();
+    
     int kingIndex = -1;
     for (int i = 0; i < 64; i++) {
       if (board.state[i] == ( playingPlayer | Pieces.KING) ) kingIndex = i;
@@ -226,8 +224,6 @@ class MovesManager {
     }
 
     board.undo(1);
-    //println("\n after");
-    //board.print();
     return !contains;
   }
 }

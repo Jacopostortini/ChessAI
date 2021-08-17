@@ -3,7 +3,7 @@ String startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 Board board;
 MouseInterface mouseInterface;
 AI player1, player2;
-int bots = 2; 
+int bots = 1;
 
 void setup() {
   size(600, 600);
@@ -30,7 +30,7 @@ void draw() {
     text(matchState, 0, -20);
     if (player1 != null) player1.dead = true;
     if (player2 != null) player2.dead = true;
-    reset(bots);
+    //reset(bots);
   }
 }
 
@@ -61,4 +61,8 @@ void mouseDragged() {
 
 void mouseReleased() {
   mouseInterface.onMouseReleased();
+}
+
+void keyPressed() {
+  mouseInterface.onKeyPressed();
 }

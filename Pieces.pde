@@ -8,11 +8,11 @@ public static class Pieces {
   final static int ROOK = 5;
   final static int QUEEN = 6;
 
-  final static int PAWN_VALUE = 1;
-  final static int KNIGHT_VALUE = 3;
-  final static int BISHOP_VALUE = 3;
-  final static int ROOK_VALUE = 5;
-  final static int QUEEN_VALUE = 9;
+  final static int PAWN_VALUE = 10;
+  final static int KNIGHT_VALUE = 30;
+  final static int BISHOP_VALUE = 30;
+  final static int ROOK_VALUE = 50;
+  final static int QUEEN_VALUE = 90;
 
   final static int WHITE = 8;
   final static int BLACK = 16;
